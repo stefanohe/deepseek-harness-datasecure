@@ -37,6 +37,21 @@ export function signMacOSRuntimeCode(
 export function verifyMacOSRuntimeCode(path: string, expected: MacOSSigningEnvironment): void
 
 /**
+ * Ad-hoc sign one Mach-O file for unsigned builds; Apple Silicon hosts refuse to execute
+ * unsigned code and no release identity exists on such hosts.
+ * @param path - Writable standalone Mach-O file.
+ * @param identifier - Stable code-signing identifier derived from the release app ID and CAS digest.
+ * @returns Resolves after codesign exits successfully.
+ */
+export function signMacOSRuntimeCodeAdhoc(path: string, identifier: string): Promise<void>
+
+/**
+ * Verify one ad-hoc signed Mach-O file without asserting a release authority.
+ * @param path - Mach-O file to inspect.
+ */
+export function verifyMacOSRuntimeCodeAdhoc(path: string): void
+
+/**
  * Verify the full application signature and its release owner.
  * @param appPath - Path to the packaged `.app` directory.
  * @param expected - Public release identity.
