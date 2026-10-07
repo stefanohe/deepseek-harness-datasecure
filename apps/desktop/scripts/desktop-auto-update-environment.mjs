@@ -22,7 +22,9 @@ const UPDATE_ENVIRONMENTS = {
   },
 }
 
-const UPDATE_TARGETS = new Set(['mac-arm64', 'mac-x64', 'win-x64'])
+// Linux targets are packaged by this fork; the set also keys the packaging
+// completion record filename, which must resolve for every packaged target.
+const UPDATE_TARGETS = new Set(['mac-arm64', 'mac-x64', 'win-x64', 'linux-x64', 'linux-arm64'])
 
 /**
  * Resolve the update deployment, defaulting local release work to test.

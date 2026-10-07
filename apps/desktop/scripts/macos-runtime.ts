@@ -7,7 +7,7 @@ import { inventoryDesktopRuntime } from '../src/runtime-tree.ts'
 import type { MacOSSigningEnvironment } from './desktop-release-environment.mjs'
 import { cachedMacOSSignature, pruneMacOSSignatureCache } from './macos-signature-cache.ts'
 import { macOSCachePolicy } from './macos-cache-policy.ts'
-import { signMacOSRuntimeCode, verifyMacOSRuntimeCode } from './verify-macos-signature.mjs'
+import { signMacOSRuntimeCode, signMacOSRuntimeCodeAdhoc, verifyMacOSRuntimeCode, verifyMacOSRuntimeCodeAdhoc } from './verify-macos-signature.mjs'
 
 const MACH_O_MAGICS = new Set(['cafebabe', 'cafebabf', 'cefaedfe', 'cffaedfe', 'feedface', 'feedfacf', 'bebafeca', 'bfbafeca'])
 
@@ -65,5 +65,29 @@ export async function signMacOSRuntime(
     pruneMacOSSignatureCache(cacheDirectory)
     console.info(`desktop macOS signing cache: ${hits} hits, ${misses} misses, ${files.length - hits - misses} uncached`)
   }
+  return files.length
+}
+
+/**
+ * Ad-hoc sign every materialized Mach-O file so unsigned builds stay executable on Apple Silicon.
+ * @param root - Self-contained production runtime without symlinks.
+ * @param appId - Release application identifier.
+ * @returns Number of signed native files.
+ */
+export async function signMacOSRuntimeAdhoc(root: string, appId: string): Promise<number> {
+  const files = inventoryDesktopRuntime(root).map(file => file.path).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
+  let next = 0
+  const workers = Array.from({ length: Math.min(4, files.length) }, async () => {
+    for (;;) {
+      const path = files[next++]
+      if (path === undefined) return
+      const identifier = `${appId}.runtime.${createHash('sha256').update(path).digest('hex')}`
+      await signMacOSRuntimeCodeAdhoc(join(root, path), identifier)
+      verifyMacOSRuntimeCodeAdhoc(join(root, path))
+    }
+  })
+  const results = await Promise.allSettled(workers)
+  const errors = results.filter(result => result.status === 'rejected').map(result => result.reason as unknown)
+  if (errors.length > 0) throw new AggregateError(errors, 'desktop runtime: native ad-hoc signing failed')
   return files.length
 }

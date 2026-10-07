@@ -26,9 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: win-x64
-            runner: windows-latest
-            script: package:win:x64:unsigned
+          # win-x64 installers are built on the maintainer workstation and
+          # attached to the release manually; CI covers the other targets.
           - target: linux-x64
             runner: ubuntu-24.04
             script: package:linux:x64:unsigned
@@ -103,10 +102,12 @@ jobs:
           macOS may still require the same xattr command on recent versions.
           EOF
 
-      - name: Publish to the release
+      - name: Attach artifacts to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          # The release stays a draft while CI fills in the assets; publishing is a manual step.
+          draft: true
           files: |
             ${{ env.ARTIFACTS }}/*.exe
             ${{ env.ARTIFACTS }}/*.AppImage

@@ -495,7 +495,7 @@ export async function packageTarget(
   await execute(['run', 'prepare:runtime', ...(signPrimaryRuntime ? ['--defer-primary-runtime-smoke'] : [])], downloadEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
-  await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)
+  await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], electronBuilderEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime', '--dsh'], electronBuilderEnv)
   if (invocation.prepareOnly) return
   if (target.platform === 'darwin' && !invocation.directory) {
@@ -503,10 +503,11 @@ export async function packageTarget(
       ...desktopElectronBuilderArguments(target, true),
       '--config.mac.notarize=false',
     ], electronBuilderEnv)
-    await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts', ...(invocation.unsigned ? ['--unsigned'] : [])], targetEnv)
     if (invocation.unsigned) {
-      // Unsigned macOS releases skip the keychain and notarization entirely: the bundle that just
-      // passed smoke is repacked straight into the release formats from the prepared directory.
+      // Unsigned macOS releases skip the keychain and notarization entirely: the directory build
+      // invalidates the signatures Electron shipped with, and Apple Silicon hosts refuse to
+      // execute unsigned Mach-O code, so the bundle is ad-hoc signed before smoke; the bundle
+      // that just passed smoke is then repacked straight into the release formats.
       const macRoot = join(buildPaths.unsignedArtifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac')
       const bundles = readdirSync(macRoot, { withFileTypes: true })
         .filter(entry => entry.isDirectory() && entry.name.endsWith('.app')).map(entry => entry.name)
@@ -515,12 +516,15 @@ export async function packageTarget(
         throw new Error(`desktop package: expected exactly one app bundle in ${macRoot}, found ${String(bundles.length)}`)
       }
       const appPath = join(macRoot, bundle)
+      await execute(['exec', 'tsx', 'scripts/adhoc-sign-macos-app.ts', appPath], targetEnv)
+      await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts', '--unsigned'], targetEnv)
       for (const format of ['dmg', 'zip'] as const) {
         await execute(desktopElectronBuilderArguments(
           target, false, { format, appPath, output: buildPaths.unsignedArtifacts },
         ), electronBuilderEnv)
       }
     } else {
+      await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
       const buildArtifact = (artifact: DesktopPrepackagedArtifact) =>
         execute(desktopElectronBuilderArguments(target, false, artifact), electronBuilderEnv)
       await withMacOSNotarizationProxy(mac?.notarizationProxy, () => packageMacOSArtifacts({
