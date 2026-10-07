@@ -1,0 +1,11 @@
+# datasecure: mounts the two bundled plugins after the base and web-app layers.
+# Rows are the vendor packages' own insert rows, copied verbatim from
+# vendor/dsh-prefill-speed-stats/cordis.patch.yml and vendor/dsh-show-balance/cordis.patch.yml.
+# Each row is the Host half; `dsh-client-modules` attaches each package's
+# `dsh.client` half to the Loader row whose specifier is the bare package name.
+- insert:
+    - id: prefill-speed-stats
+      name: dsh-prefill-speed-stats
+- insert:
+    - id: show-balance
+      name: dsh-show-balance

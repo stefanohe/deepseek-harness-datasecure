@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write README.md
+/deepseek-harness-datasecure-remastered:
+  en: 903c31616de04dae
+  zh: e69d9aa7229509b7
+/deepseek-harness-datasecure-remastered/differences-from-the-official-build:
+  en: c33deb30155465f6
+  zh: e645af35255720d2
+/deepseek-harness-datasecure-remastered/installation:
+  en: 606b2550c2ecfa87
+  zh: aa012393406a19d5
+/deepseek-harness-datasecure-remastered/other-notes:
+  en: 17180deb30b67d22
+  zh: 7fc492e3a95392b8
+/deepseek-harness-datasecure-remastered/upstream-description:
+  en: ac615441fc0deac6
+  zh: 40942943ef26e3e0
+/deepseek-harness-datasecure-remastered/upstream-description/developer-preview:
+  en: 7b6a64dbd51156e7
+  zh: c6f42866a7866725
+/deepseek-harness-datasecure-remastered/upstream-description/contributing:
+  en: e6ad27aa8b9ee703
+  zh: 4868fea9122f8c1d
+/deepseek-harness-datasecure-remastered/upstream-description/citation:
+  en: dd327827732dafbf
+  zh: 942883b949dee819
+/deepseek-harness-datasecure-remastered/upstream-description/license:
+  en: 5894993b880471d7
+  zh: 62208a7a69b7d151

@@ -1,0 +1,42 @@
+{
+  "name": "dsh-show-balance",
+  "version": "0.2.0-rc.2",
+  "description": "Show account balance directly in the status bar.",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "account",
+    "balance"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefanohe/dsh-show-balance.git"
+  },
+  "homepage": "https://github.com/stefanohe/dsh-show-balance#readme",
+  "bugs": {
+    "url": "https://github.com/stefanohe/dsh-show-balance/issues"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "images",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}

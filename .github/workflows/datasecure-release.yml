@@ -1,0 +1,130 @@
+# Build the Desktop application for every supported platform and attach the
+# installers to the GitHub release for a version tag.
+#
+# These CI artifacts are unsigned: signing identities and notarization
+# credentials live outside the repository, so signed releases are prepared
+# separately on a maintainer machine. The -unsigned suffix is removed from the
+# uploaded file names because this workflow is the only publisher.
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win-x64
+            runner: windows-latest
+            script: package:win:x64:unsigned
+          - target: linux-x64
+            runner: ubuntu-24.04
+            script: package:linux:x64:unsigned
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            script: package:linux:arm64:unsigned
+          - target: mac-arm64
+            runner: macos-15
+            script: package:mac:arm64:unsigned
+          - target: mac-x64
+            runner: macos-15-intel
+            script: package:mac:x64:unsigned
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      ARTIFACTS: apps/desktop/.desktop-build/targets/${{ matrix.target }}/unsigned-artifacts
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Windows Developer Mode (symlink support)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
+          /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+
+      - name: Install dependencies
+        # Registry endpoints stall intermittently; bounded retries keep a
+        # single slow transfer from failing the whole build.
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm install --frozen-lockfile; then exit 0; fi
+            [ "$attempt" -lt 3 ] && sleep 10
+          done
+          exit 1
+
+      - name: Package ${{ matrix.target }}
+        run: pnpm --dir apps/desktop run ${{ matrix.script }}
+
+      - name: Drop the unsigned file-name suffix
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$ARTIFACTS"
+          for file in *-unsigned.*; do
+            [ -f "$file" ] || continue
+            mv -- "$file" "${file/-unsigned/}"
+          done
+
+      - name: Explain Gatekeeper handling (macOS)
+        if: startsWith(matrix.target, 'mac-')
+        shell: bash
+        run: |
+          cat > "$ARTIFACTS/README-macos.txt" <<'EOF'
+          These macOS builds are unsigned and not notarized, so Gatekeeper
+          blocks them by default. After installing the app from the disk
+          image, clear the quarantine attribute once from a terminal:
+
+            xattr -dr com.apple.quarantine "/Applications/DeepSeek Harness DataSecure.app"
+
+          Alternatively, right-click the app and choose Open on first launch;
+          macOS may still require the same xattr command on recent versions.
+          EOF
+
+      - name: Publish to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ARTIFACTS }}/*.exe
+            ${{ env.ARTIFACTS }}/*.AppImage
+            ${{ env.ARTIFACTS }}/*.tar.gz
+            ${{ env.ARTIFACTS }}/*.dmg
+            ${{ env.ARTIFACTS }}/*.zip
+            ${{ env.ARTIFACTS }}/*.txt
+
+      - name: Upload run artifacts
+        # A manual run has no release to attach to, so keep the installers downloadable anyway.
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: |
+            ${{ env.ARTIFACTS }}/*.exe
+            ${{ env.ARTIFACTS }}/*.AppImage
+            ${{ env.ARTIFACTS }}/*.tar.gz
+            ${{ env.ARTIFACTS }}/*.dmg
+            ${{ env.ARTIFACTS }}/*.zip
+            ${{ env.ARTIFACTS }}/*.txt

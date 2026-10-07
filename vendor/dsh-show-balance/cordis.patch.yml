@@ -1,0 +1,9 @@
+# Bundle patch for dsh-show-balance, applied after the base and web-app layers.
+# One row: the Host half, which contributes no service of its own -- the balance
+# comes from the account Remote, and the strip is the browser half. The row
+# exists so `dsh-client-modules` has a Loader row to attach that half to (it
+# attaches a package's `dsh.client` declaration to the row whose specifier is the
+# bare package name).
+- insert:
+    - id: show-balance
+      name: dsh-show-balance
