@@ -53,7 +53,10 @@ const LOCKFILE_PERSIST = resolve(BUILD_PATHS.root, '..', '..', 'runtime-pnpm-loc
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const PNPM_BUILD_STATE = BUILD_PATHS.dshPnpm
 const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
-const NODE = join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+// Match the three-way executable layout from prepare-runtime: linux extracts a flat
+// `electron` binary, so a win-or-mac split would spawn a nonexistent mac bundle path there.
+const NODE = join(BUILD_PATHS.electron,
+  process.platform === 'win32' ? 'electron.exe' : process.platform === 'linux' ? 'electron' : 'Electron.app/Contents/MacOS/Electron')
 const PNPM = join(RUNTIME_ROOT, 'pnpm', 'bin', 'pnpm.mjs')
 
 // `pnpm pack` rewrites `workspace:` specifiers into the packed manifest with dependency-graph
