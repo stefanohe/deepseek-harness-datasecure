@@ -31,8 +31,10 @@ if (windows) {
   executable = join(application, soleArtifactName(application, '.exe', 'executable'))
 } else if (linux) {
   // datasecure: the Linux build pins executableName in the builder config, so the entry point inside
-  // the unpacked directory resolves by that literal name.
-  application = join(artifacts, 'linux-unpacked')
+  // the unpacked directory resolves by that literal name; the unpacked directory itself carries an
+  // arch suffix for non-x64 builds (electron-builder emits linux-arm64-unpacked), so it is discovered
+  // by suffix with the same fail-closed count check.
+  application = join(artifacts, soleArtifactName(artifacts, '-unpacked', 'unpacked directory', true))
   executable = join(application, 'deepseek-harness-datasecure')
 } else {
   const macRoot = join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac')
