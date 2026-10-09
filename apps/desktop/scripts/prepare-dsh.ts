@@ -2,7 +2,7 @@
 
 import { packagingStep } from './packaging-step.mjs'
 import { spawn } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { delimiter, join, relative, resolve } from 'node:path'
@@ -209,6 +209,19 @@ async function main(): Promise<void> {
       }
       writeFileSync(packageSetPath, `${JSON.stringify(packageSet, undefined, 2)}\n`)
       createRuntimeProjectMetadata(BUILD_ROOT, release)
+      // The runtime project is a generated standalone pnpm workspace, so the repository's
+      // patchedDependencies settings do not reach it. Forward the libreoffice-kit engine patch
+      // here: the package is consumed at runtime from this tree, and unpatched its
+      // installedPackageExists compares the stat result against undefined while Electron's
+      // asar-patched lstat returns null for missing entries — a platform without the native
+      // engine package would be misread as half-installed and the wasm fallback refused.
+      const officeKitPatchFile = '@deepseek-ai__libreoffice-kit@0.1.5.patch'
+      mkdirSync(join(BUILD_ROOT, 'patches'), { recursive: true })
+      copyFileSync(resolve(APP_ROOT, '..', '..', 'patches', officeKitPatchFile), join(BUILD_ROOT, 'patches', officeKitPatchFile))
+      appendFileSync(
+        join(BUILD_ROOT, 'pnpm-workspace.yaml'),
+        `patchedDependencies:\n  '@deepseek-ai/libreoffice-kit@0.1.5': patches/${officeKitPatchFile}\n`,
+      )
     })
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:lockfile', async () => {
       // A plain `install --lockfile-only` re-resolves every spec against the registry even when a
