@@ -2,7 +2,7 @@
 
 import { packagingStep } from './packaging-step.mjs'
 import { spawn } from 'node:child_process'
-import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { delimiter, join, relative, resolve } from 'node:path'
@@ -22,6 +22,7 @@ import {
 import { smokePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { prepareRuntimeManifests } from './prepare-runtime-manifests.ts'
+import { prepareRuntimePatches, verifyRuntimePatches } from './prepare-runtime-patches.ts'
 import { writeDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import {
   resolveDesktopAppId,
@@ -57,7 +58,7 @@ const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
 // `electron` binary, so a win-or-mac split would spawn a nonexistent mac bundle path there.
 const NODE = join(BUILD_PATHS.electron,
   process.platform === 'win32' ? 'electron.exe' : process.platform === 'linux' ? 'electron' : 'Electron.app/Contents/MacOS/Electron')
-const PNPM = join(RUNTIME_ROOT, 'pnpm', 'bin', 'pnpm.mjs')
+const PNPM = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
 
 // `pnpm pack` rewrites `workspace:` specifiers into the packed manifest with dependency-graph
 // iteration order, so identical sources yield different tarball bytes on every run; the persisted
@@ -195,7 +196,7 @@ async function main(): Promise<void> {
       mkdirSync(STORE_ROOT, { recursive: true })
     })
     const release = desktopRelease()
-    await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:stage-packages', async () => {
+    const patches = await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:stage-packages', async () => {
       const packageSetPath = join(BUILD_ROOT, DESKTOP_PACKAGE_SET_FILE)
       copyFileSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGE_SET_FILE), packageSetPath)
       type StagedPackageSet = { packages: Array<{ file: string; bytes: number; integrity: string }> }
@@ -209,19 +210,7 @@ async function main(): Promise<void> {
       }
       writeFileSync(packageSetPath, `${JSON.stringify(packageSet, undefined, 2)}\n`)
       createRuntimeProjectMetadata(BUILD_ROOT, release)
-      // The runtime project is a generated standalone pnpm workspace, so the repository's
-      // patchedDependencies settings do not reach it. Forward the libreoffice-kit engine patch
-      // here: the package is consumed at runtime from this tree, and unpatched its
-      // installedPackageExists compares the stat result against undefined while Electron's
-      // asar-patched lstat returns null for missing entries — a platform without the native
-      // engine package would be misread as half-installed and the wasm fallback refused.
-      const officeKitPatchFile = '@deepseek-ai__libreoffice-kit@0.1.5.patch'
-      mkdirSync(join(BUILD_ROOT, 'patches'), { recursive: true })
-      copyFileSync(resolve(APP_ROOT, '..', '..', 'patches', officeKitPatchFile), join(BUILD_ROOT, 'patches', officeKitPatchFile))
-      appendFileSync(
-        join(BUILD_ROOT, 'pnpm-workspace.yaml'),
-        `patchedDependencies:\n  '@deepseek-ai/libreoffice-kit@0.1.5': patches/${officeKitPatchFile}\n`,
-      )
+      return prepareRuntimePatches(BUILD_ROOT, resolve(APP_ROOT, '..', '..'))
     })
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:lockfile', async () => {
       // A plain `install --lockfile-only` re-resolves every spec against the registry even when a
@@ -249,6 +238,7 @@ async function main(): Promise<void> {
       await runPnpm(['install', '--lockfile-only'])
       copyFileSync(join(BUILD_ROOT, 'pnpm-lock.yaml'), LOCKFILE_PERSIST)
     })
+    verifyRuntimePatches(BUILD_ROOT, patches)
     verifyDesktopCoreLockfile(
       readFileSync(join(BUILD_ROOT, 'pnpm-lock.yaml'), 'utf8'),
       readDesktopCorePackageSet(BUILD_ROOT, release.version),
