@@ -1,5 +1,8 @@
+import { globSync } from 'node:fs'
 import { defineConfig } from 'tsdown'
 import { typertPlugin } from './packages/typert/generator/lib/types/tsdown-plugin.js'
+import { WORKSPACE_TYPERT_FACES } from './scripts/typert-faces.ts'
+import { workspacePackageGlobs } from './scripts/workspace-package-globs.ts'
 
 function isBuildFaceClient(value: unknown): boolean {
   if (value === undefined || value === 'host') return false
@@ -18,13 +21,13 @@ function isBuildFaceClient(value: unknown): boolean {
  */
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
+  // datasecure: the two bundled plugins are prebuilt plain-JS packages with no
+  // lib/types entries and no client build step; the standard workspace entries
+  // would fail on them.
+  const packages = workspacePackageGlobs(globSync(['vendor/*/package.json', 'packages/*/*/package.json'], { cwd: import.meta.dirname }))
+    .filter(pkg => pkg !== 'vendor/dsh-prefill-speed-stats' && pkg !== 'vendor/dsh-show-balance')
   return {
-    // datasecure: the two bundled plugins are prebuilt plain-JS packages with no
-    // lib/types entries and no client build step; the standard workspace entries
-    // would fail on them.
-    workspace: client
-      ? ['vendor/*', '!vendor/dsh-prefill-speed-stats', '!vendor/dsh-show-balance', 'packages/*/*', 'apps/cli']
-      : ['vendor/*', '!vendor/dsh-prefill-speed-stats', '!vendor/dsh-show-balance', 'packages/*/*', 'apps/cli', 'apps/desktop-host'],
+    workspace: [...packages, 'apps/cli', ...client ? [] : ['apps/desktop-host']],
     entry: client ? '' : ['lib/types/{index,startup}.js'],
     outDir: 'lib',
     format: ['esm'],
@@ -33,6 +36,6 @@ export default defineConfig(({ env }) => {
     fixedExtension: false,
     dts: false,
     clean: false,
-    plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: ['host'] })],
+    plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: WORKSPACE_TYPERT_FACES })],
   }
 })

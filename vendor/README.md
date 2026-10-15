@@ -60,7 +60,9 @@ Keep this log exhaustive — every divergence from upstream must be listed.
 
 23. **`loader/src/config/entry.ts` module identity**: retains each entry's raw import result as `moduleNamespace`, before plugin export normalization. HMR matches that object to Node's cached module namespace and updates it after a successful reload. `EntryTree.import()` keeps its existing arguments and return value; `loader/README.md` documents the additive field.
 
-24. **datasecure bundled plugins (`dsh-prefill-speed-stats/`, `dsh-show-balance/`)**: copied verbatim from the author's standalone plugin repositories at the manifest-table commits; the only removals are the embedded `.git` directories. No source edits: these are prebuilt plain-JS packages mounted through `packages/bundle/web-app/datasecure-plugins.patch.yml`, exempt from the framework re-scope, the standard tsdown entries, and the notices browser-bundle walk (zero npm dependencies of their own).
+24. **`timer/locale/{en,zh}.json` display metadata**: local English and Chinese titles and descriptions for the Settings plugin inventory. `timer/package.json` exports and publishes these locale resources.
+
+25. **datasecure bundled plugins (`dsh-prefill-speed-stats/`, `dsh-show-balance/`)**: copied verbatim from the author's standalone plugin repositories at the manifest-table commits; the only removals are the embedded `.git` directories. No source edits: these are prebuilt plain-JS packages mounted through `packages/bundle/web-app/datasecure-plugins.patch.yml`, exempt from the framework re-scope, the standard tsdown entries, and the notices browser-bundle walk (zero npm dependencies of their own).
 
 ## Sync procedure
 

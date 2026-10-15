@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const bundle = clientBundle('@deepseek-ai/dsh-client-ui-brand-official', ['lib/types/index.js'])
+const bundle = clientBundle(import.meta.dirname, ['lib/types/index.js'])
 
 // datasecure: inline the brand artwork (logo png, waving gif) as base64 data
 // URIs, following the ui-settings-account onboarding-assets precedent.
