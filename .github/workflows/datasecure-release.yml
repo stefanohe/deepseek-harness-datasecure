@@ -26,8 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # win-x64 installers are built on the maintainer workstation and
-          # attached to the release manually; CI covers the other targets.
+          - target: win-x64
+            runner: windows-latest
+            script: package:win:x64:unsigned
           - target: linux-x64
             runner: ubuntu-24.04
             script: package:linux:x64:unsigned
