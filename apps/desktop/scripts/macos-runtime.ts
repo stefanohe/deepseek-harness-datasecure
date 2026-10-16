@@ -86,12 +86,14 @@ export async function signMacOSRuntime(
 
 /**
  * Ad-hoc sign every materialized Mach-O file so unsigned builds stay executable on Apple Silicon.
- * @param root - Self-contained production runtime without symlinks.
+ * @param root - Self-contained production runtime.
  * @param appId - Release application identifier.
+ * @param kind - Primary payloads admit validated Python aliases; Desktop application runtimes reject every link.
  * @returns Number of signed native files.
  */
-export async function signMacOSRuntimeAdhoc(root: string, appId: string): Promise<number> {
-  const files = inventoryDesktopRuntime(root).map(file => file.path).filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
+export async function signMacOSRuntimeAdhoc(root: string, appId: string, kind: 'desktop' | 'primary' = 'desktop'): Promise<number> {
+  const inventory = kind === 'primary' ? await primaryRuntimeFiles(root) : inventoryDesktopRuntime(root).map(file => file.path)
+  const files = inventory.filter(path => MACH_O_MAGICS.has(magic(join(root, path))))
   let next = 0
   const workers = Array.from({ length: Math.min(4, files.length) }, async () => {
     for (;;) {

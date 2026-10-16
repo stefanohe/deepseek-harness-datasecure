@@ -275,7 +275,7 @@ async function main(): Promise<void> {
         // Unsigned builds have no Developer ID on the host, but Apple Silicon hosts still require
         // a signature to execute the runtime, so native files are ad-hoc signed instead.
         await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:dsh-native', () => signMacOSRuntimeAdhoc(DSH_OUTPUT_ROOT, resolveDesktopAppId(process.env)))
-        await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:primary-native', () => signMacOSRuntimeAdhoc(join(RUNTIME_ROOT, 'primary-runtime'), resolveDesktopAppId(process.env)))
+        await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:primary-native', () => signMacOSRuntimeAdhoc(join(RUNTIME_ROOT, 'primary-runtime'), resolveDesktopAppId(process.env), 'primary'))
       } else {
         const cacheDirectory = resolveMacOSSignatureCacheDirectory(process.env, BUILD_PATHS.root)
         await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:dsh-native', () => signMacOSRuntime(DSH_OUTPUT_ROOT, resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env), target.arch, cacheDirectory))
