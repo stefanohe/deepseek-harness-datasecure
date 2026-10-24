@@ -6,16 +6,24 @@ name: E2E (real DeepSeek API)
 # https://api.deepseek.com/anthropic (DEEPSEEK_BASE_URL is pinned explicitly so a
 # stray repo-root .env can't redirect the run).
 #
-# pull_request IS a trigger, but GitHub withholds repo secrets from BOTH forked
-# PRs and Dependabot PRs (the latter are same-repo, fork==false, but still
-# keyless). The job-level `if:` below skips the whole job for those untrusted
-# PRs. The Dependabot test keys on the PR AUTHOR (pull_request.user.login), not
-# github.actor (the run trigger) — a maintainer reopening a Dependabot PR would
-# make github.actor human while the PR is still keyless. When the job runs, the
-# secret is expected, so the preflight hard-fails if it's missing (a missing
-# secret would otherwise make the self-skipping suite report a false green). A
-# job skipped by a job-level `if:` reports as a SUCCESSFUL check, so this
-# workflow is safe to use as a required status check if desired.
+# DATASECURE FORK POSTURE — this repository does not configure the
+# DEEPSEEK_API_KEY_EXTERNAL secret. The suite self-skips without a key, so an
+# automatic run on every push would report an all-skipped false green; the
+# automatic triggers (push / pull_request / schedule) are therefore removed and
+# only an explicit `workflow_dispatch` remains. The guard is NOT weakened: a
+# deliberate manual run with no key still hard-fails the preflight below,
+# because that is a misconfiguration rather than a pass. Configure the
+# repository secret, then re-add whichever triggers you want.
+#
+# Upstream design kept for reference (the job-level `if:` below still enforces
+# it should the triggers return): `pull_request` was a trigger, with that `if:`
+# skipping the untrusted PRs, since GitHub withholds repo secrets from BOTH
+# forked PRs and Dependabot PRs (the latter are same-repo, fork==false, but
+# still keyless) — and the Dependabot test keys on the PR AUTHOR
+# (pull_request.user.login), not github.actor (the run trigger), because a
+# maintainer reopening a Dependabot PR would make github.actor human while the
+# PR is still keyless. A job skipped by a job-level `if:` reports as a
+# SUCCESSFUL check, so this workflow is safe to use as a required status check.
 #
 # SECURITY — NEVER change this trigger to `pull_request_target`. `pull_request`
 # checks out and runs the PR's HEAD code WITHOUT secrets for forks, which is what
@@ -25,19 +33,12 @@ name: E2E (real DeepSeek API)
 # The fork/secret model and its public-repo implications are recorded in
 # .agents/notes/implemented/testing/2026-06-19-real-api-e2e-ci.md.
 #
-# Note: scheduled triggers are auto-disabled after 60 days of repo inactivity;
-# push/pull_request/workflow_dispatch act as backstops.
+# Note: the nightly schedule and the push/pull_request backstops are gone with
+# the posture above; re-add them together with the secret.
 on:
   workflow_dispatch:
-  push:
-    branches: [main, master]
-  pull_request:
-  schedule:
-    # 00:17 UTC nightly = 08:17 Asia/Shanghai — off the top-of-hour cron stampede.
-    - cron: '17 0 * * *'
 
-# Keep only the newest validation in each workflow/ref, including master
-# pushes, nightly runs, and manual dispatches.
+# Keep only the newest dispatch per ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
